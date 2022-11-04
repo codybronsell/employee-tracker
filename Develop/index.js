@@ -1,53 +1,93 @@
 import inquirer from 'inquirer';
+import cTable from 'console.table';
+import mysql from 'mysql2';
+
 import fs from 'fs';
+import { exit } from 'process';
+let departments = [];
+let roles = [];
+let employees = [];
+const connection = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',
+  password: '123456789',
+  database: 'codydb'
+});
+loadData();
 // TODO: Create an array of questions for user input
 const team = [];
 const questions = [
+  {
+    type: 'list',
+    name: 'toDo',
+    message: "what do you want to do?",
+    choices: ['View All Employees','Add Employees','Update Employee Role','View All Roles','Add Role','View All Departments','Add Department','Quit'],
+  },
     {
       type: 'input',
-      name: 'fullName',
-      message: "What's the your full name?",
+      name: 'addEmployeeFirst',
+      message: "What's the first name?",
+      when: (answers) => answers.toDo === 'Add Employees'
     },
     {
       type: 'input',
-      name: 'eID',
-      message: "whats your ID number?"
+      name: 'addEmployeeLast',
+      message: "whats the last name?",
+      when: (answers) => answers.toDo === 'Add Employees'
       
     },
     {
-      type: 'input',
-      name: 'email',
-      message: "Whats your email?",
+      type: 'list',
+      name: 'Role',
+      message: "Whats is the employees role?",
+      choices: roles,
+      when: (answers) => answers.toDo === 'Add Employees'
     },
     {
-       type: 'list',
-       name: 'role',
-       message: "what role do you work?(employee,manager,engineer,intern)",
-       choices: ['employee','manager','engineer','intern'],
+      type: 'list',
+      name: 'Employee',
+      message: "Select Employee",
+      choices: employees,
+      when: (answers) => answers.toDo === 'Update Employee Role'
+    },
+    {
+      type: 'list',
+      name: 'newRole',
+      message: "Whats is the employees new role?",
+      choices: roles,
+      when: (answers) => answers.toDo === 'Update Employee Role'
+    },
+    {
+      type: 'list',
+      name: 'Manager',
+      message: "who is the employees manager?",
+      choices: employees,
+      when: (answers) => answers.toDo === 'Add Employees'
     },
     {
       type: 'input',
-      name: 'officeNumber',
-      message: "What's your office number?",
-	  when: (answers) => answers.role === 'manager',
+      name: 'addDepartments',
+      message: "what is the name of the department you wish to add?",
+      when: (answers) => answers.toDo === 'Add Department'
      },
 	 {
       type: 'input',
-      name: 'github',
-      message: "What's your Github username?",
-	   when: (answers) => answers.role === 'engineer',
+      name: 'addRole',
+      message: "What's the name of the role you wish to add?",
+      when: (answers) => answers.toDo === 'Add Role'
     },
-	 {
+    {
       type: 'input',
-      name: 'school',
-      message: "What's the name of the school you attend/attended?",
-	  when: (answers) => answers.role === 'intern',
+      name: 'addRoleSal',
+      message: "What's the salary of this role?",
+      when: (answers) => answers.toDo === 'Add Role'
     },
-	 {
-       type: 'list',
-       name: 'addMember',
-       message: "Do you want to add another team member?",
-       choices: ['Yes','No'],
+    {
+      type: 'list',
+      name: 'addRoleDep',
+      choices: departments,
+      message: "What department will this role be under?",
+      when: (answers) => answers.toDo === 'Add Role'
     },
   ];
 
@@ -64,16 +104,137 @@ function initQuestions(){
 		.then((answers) => {
 			//console.log(JSON.stringify(answers, null, '  '));
 			team.push(answers);
-			if(answers.addMember=='Yes'){
-				initQuestions();
-			}else{
-				createHTML();
-			}
-			
+      //'Add Employees','Update Employee Role','View All Roles','Add Role','View All Departments','Add Department','Quit'
+      switch(answers.toDo){
+        case 'Add Employees':
+          connection.connect(function(err) {
+            if (err) throw err;
+            var sql = "INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ('"+answers.addEmployeeFirst +"', '"+answers.addEmployeeLast +"', '"+answers.Role +"', '"+answers.Manager +"')";
+            connection.query(sql, function (err, result) {
+              if (err) throw err;
+              
+            });
+            loadData();
+            console.info("1 record inserted");
+            initQuestions();
+          });
+          break;
+        case 'Update Employee Role':
+          connection.connect(function(err) {
+            if (err) throw err;
+            var sql = "UPDATE employee SET role_id = "+answers.newRole+" WHERE id = "+answers.Employee;
+            connection.query(sql, function (err, result) {
+              if (err) throw err;
+              
+            });
+            loadData();
+            console.info("1 record inserted");
+            initQuestions();
+          });
+            break;
+        case 'View All Roles':
+          connection.query(
+            'SELECT * FROM `role`',
+            function(err, results, fields) {
+              const roleTable = cTable.getTable(results);
+              console.info(roleTable);
+              loadData();
+              initQuestions();
+            }
+          );   
+          break;
+          case 'View All Employees':
+            connection.query(
+              'SELECT * FROM `employee`',
+              function(err, results, fields) {
+                const employeeTable = cTable.getTable(results);
+                console.info(employeeTable);
+                loadData();
+                initQuestions();
+              }
+            );   
+            break;  
+        case 'Add Role':
+          connection.connect(function(err) {
+            if (err) throw err;
+            var sql = "INSERT INTO role (title, salary, department_id) VALUES ('"+answers.addRole +"', '"+answers.addRoleSal +"', '"+answers.addRoleDep+"')";
+            connection.query(sql, function (err, result) {
+              if (err) throw err;
+              
+            });
+            loadData();
+            console.info("1 record inserted");
+            initQuestions();
+          });
+          break;
+        case 'View All Departments':
+          connection.query(
+            'SELECT * FROM `department`',
+            function(err, results, fields) {
+              const departmentsTable = cTable.getTable(results);
+              console.info(departmentsTable);
+              loadData();
+              initQuestions();
+            }
+          );           
+           
+          break;
+        case 'Add Department':
+          connection.connect(function(err) {
+            if (err) throw err;
+            var sql = "INSERT INTO department (name) VALUES ('"+answers.addDepartments +"')";
+            connection.query(sql, function (err, result) {
+              if (err) throw err;
+              
+            });
+            loadData();
+            console.info("1 record inserted");
+            initQuestions();
+          });
+          break;
+        default:
+        console.info('Good Bye....');
+        exit();
+      }			
       });
 }
-function secQuestions(){
-	
+function loadData(){
+departments = [];
+roles = [];
+employees = [];
+	connection.query(
+    'SELECT * FROM `role`',
+    function(err, results, fields) {
+      for(var d = 0; d<results.length;d++){
+        var option = {};
+        option.name = results[d].title;
+        option.value = results[d].id;  
+        roles.push(option);
+      }
+    }
+  );
+  connection.query(
+    'SELECT * FROM `department`',
+    function(err, results, fields) {
+      for(var d = 0; d<results.length;d++){
+        var option = {};
+        option.name = results[d].name;
+        option.value = results[d].id;  
+        departments.push(option);
+      }
+    }
+  );
+  connection.query(
+    'SELECT * FROM `employee`',
+    function(err, results, fields) {
+      for(var d = 0; d<results.length;d++){
+        var option = {};
+        option.name = results[d].first_name + ' ' +  results[d].last_name;
+        option.value = results[d].id;  
+        employees.push(option);
+      }
+    }
+  );
 }
 function createHTML(){            
 			var cards = '';	
@@ -105,7 +266,7 @@ function createHTML(){
 			}	
 
 
-      searchReplaceFile(/REPLACE/g, cards, 'template/html.html', 'team.html');
+      //searchReplaceFile(/REPLACE/g, cards, 'template/html.html', 'team.html'); 
 }
 
 function searchReplaceFile(regexpFind, replace, templateFile, outputFile) {
@@ -130,7 +291,3 @@ function searchReplaceFile(regexpFind, replace, templateFile, outputFile) {
 
 // Function call to initialize app
 init();
-
-
-
-

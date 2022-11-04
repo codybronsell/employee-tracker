@@ -12,7 +12,9 @@
   "license": "ISC",
   "dependencies": {
     "cheerio": "^1.0.0-rc.12",
+    "console.table": "^0.10.0",
     "inquirer": "^6.5.2",
+    "mysql2": "^2.3.3",
     "node": "^18.10.0"
   }
 }
